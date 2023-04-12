@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+	<style>
+	.hide {
+		display: none;
+	}
+	</style>
+</head>
+<body>
+
+	<div id="app" class="container">
+		<div class="card p-2 mt-3 form-client">
+			<div class="car-body">
+				<h1 class="card-title">Whatsapp API</h1>
+
+				<div class="form-container">
+					<div class="mb-2">
+						<label for="client-id" class="form-label">ID User</label><br>
+						<input type="text" id="client-id" placeholder="Masukkan ID" class="form-control" readonly>
+					</div>
+					
+					<div class="mb-2">
+						<label for="client-description" class="form-label">Deskripsi</label><br>
+						<textarea rows="3" id="client-description" placeholder="Masukkan deskripsi" class="form-control"></textarea>
+					</div>
+					<button class="btn btn-primary add-client-btn">Tambah Client</button>
+				</div>
+			</div>
+		</div>
+		<div class="row client-container mt-3">
+			<div class="client hide col-md-4 mb-2">
+				<div class="card">
+					<div class="card-body">
+						<h3 class="card-title"></h3>
+						<p class="description"></p>
+						<img src="" alt="QR Code" id="qrcode" class="hide">
+						<h3>Logs:</h3>
+						<ul class="logs"></ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="/socket.io/socket.io.js" crossorigin="anonymous"></script>
+
+	<script>
+		$(document).ready(function() {
+			var socket = io();
+
+			$('.add-client-btn').click(function() {
+				
+				let x = `user-${Math.floor((Math.random() * 1000) + 1)}`;
+				$('#client-id').val(x);
+				var clientId = x;
+				var clientDescription = $('#client-description').val();
+
+        		var clientClass = 'client-' + clientId;
+				var template = $('.client').first().clone()
+										   .removeClass('hide')
+										   .addClass(clientClass);
+
+				template.find('.title').html(clientId);
+				template.find('.description').html(clientDescription);
+				$('.client-container').append(template);
+
+				socket.emit('create-session', {
+					id: clientId,
+					description: clientDescription
+				});
+				// $('.form-client').hide();
+			});
+
+			socket.on('init', function(data) {
+				$('.client-container .client').not(':first').remove();
+				console.log(data);
+				for (var i = 0; i < data.length; i++) {
+					var session = data[i];
+
+					var clientId = session.id;
+					var clientDescription = session.description;
+
+          			var clientClass = 'client-' + clientId;
+					var template = $('.client').first().clone()
+											   .removeClass('hide')
+											   .addClass(clientClass);
+
+					template.find('.title').html(clientId);
+					template.find('.description').html(clientDescription);
+					$('.client-container').append(template);
+
+					if (session.ready) {
+						$(`.client.${clientClass} .logs`).append($('<li>').text('Whatsapp is ready!'));
+					} else {
+						$(`.client.${clientClass} .logs`).append($('<li>').text('Connecting...'));
+					}
+				}
+				console.log(data.length)
+				// if (data.length > 0){
+				// 	$('.form-client').hide();
+				// }else{
+				// 	$('.form-client').hide();
+				// }
+			});
+			socket.on('remove-session', function(id) {
+				$(`.client.client-${id}`).remove();
+				// $('.form-client').show();
+			});
+
+			socket.on('message', function(data) {
+				$(`.client.client-${data.id} .logs`).append($('<li>').text(data.text));
+			});
+
+			socket.on('qr', function(data) {
+				$(`.client.client-${data.id} #qrcode`).attr('src', data.src).removeClass("hide");
+				$(`.client.client-${data.id} #qrcode`).show();
+				$('#client-id').val("");
+				$('#client-description').val("");
+
+			});
+
+			socket.on('ready', function(data) {
+				$(`.client.client-${data.id} #qrcode`).hide();
+			});
+
+			socket.on('authenticated', function(data) {
+				$(`.client.client-${data.id} #qrcode`).hide();
+			});
+		});
+	</script>
+</body>
+</html>

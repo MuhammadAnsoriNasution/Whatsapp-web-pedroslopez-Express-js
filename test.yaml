@@ -1,0 +1,19 @@
+config:
+  target: "http://128.199.234.199:8000"
+  phases:
+    - duration: 10
+      arrivalRate: 200
+      name: "send Message"
+  processor: "./processor.js"
+
+scenarios:
+  - name: "Send Message"
+    flow:
+      - post:
+          url: "/send-message"
+          beforeRequest: sendMessage
+          headers:
+            Content-Type: "application/x-www-form-urlencoded"
+          form:
+            number: "{{ number }}"
+            message: "{{ message }}"

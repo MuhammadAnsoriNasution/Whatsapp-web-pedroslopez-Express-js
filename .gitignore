@@ -1,0 +1,5 @@
+node_modules/
+.wwebjs_auth/
+package-lock.json
+yarn.lock
+whatsapp-sessions.json
