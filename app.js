@@ -20,11 +20,7 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => {
-  res.sendFile("index.html", {
-    root: __dirname,
-  });
-});
+
 
 const client = new Client({
   restartOnAuthFail: true,
@@ -37,7 +33,7 @@ const client = new Client({
       "--disable-accelerated-2d-canvas",
       "--no-first-run",
       "--no-zygote",
-      "--single-process", // <- this one doesn't works in Windows
+      "--single-process",
       "--disable-gpu",
     ],
   },
@@ -46,17 +42,36 @@ const client = new Client({
 
 client.initialize();
 
+app.get("/", (req, res) => {
+  res.sendFile("index.html", {
+    root: __dirname,
+
+  });
+});
 io.on("connection", function (socket) {
-  console.log("connection");
+  console.log("connection")
   socket.emit("message", "Connecting...");
 
   client.on("qr", (qr) => {
-    console.log("QR RECEIVED", qr);
     qrcode.toDataURL(qr, (err, url) => {
       socket.emit("qr", url);
       socket.emit("message", "QR Code received, scan please!");
     });
   });
+
+  client.on('loading_screen', (percent, message) => {
+    console.log('LOADING SCREEN', percent, message);
+  });
+  client.on('change_state', state => {
+    console.log('CHANGE STATE', state);
+  });
+
+
+  if (client.info !== undefined) {
+    socket.emit("ready", "Whatsapp is ready!");
+    socket.emit("message", "Whatsapp is ready!");
+    console.log("ready")
+  }
 
   client.on("ready", () => {
     console.log("ready");
@@ -65,18 +80,16 @@ io.on("connection", function (socket) {
   });
 
   client.on("authenticated", () => {
+    console.log("authenticated");
     socket.emit("authenticated", "Whatsapp is authenticated!");
     socket.emit("message", "Whatsapp is authenticated!");
-    console.log("AUTHENTICATED");
   });
 
   client.on("auth_failure", function (session) {
-    console.log("auth_failure");
     socket.emit("message", "Auth failure, restarting...");
   });
 
   client.on("disconnected", (reason) => {
-    console.log("disconnected");
     socket.emit("message", "Whatsapp is disconnected!");
     client.destroy();
     client.initialize();
@@ -95,7 +108,6 @@ app.get("/initialize", function (req, ress) {
   } catch (error) {
     client.initialize();
   }
-
   ress.json({ success: "client di hapus" });
 });
 
@@ -114,12 +126,18 @@ app.post(
   "/send-message",
   [body("number").notEmpty(), body("message").notEmpty()],
   async (req, res) => {
+    if (client.info === undefined) {
+      return res.status(405).json({
+        status: false,
+        message: 'the system is not ready yet'
+      })
+    }
     const errors = validationResult(req).formatWith(({ msg }) => {
       return msg;
     });
 
     if (!errors.isEmpty()) {
-      return res.status(422).json({
+      return res.status(421).json({
         status: false,
         message: errors.mapped(),
       });
