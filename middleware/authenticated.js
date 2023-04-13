@@ -1,9 +1,10 @@
 const jwt = require("jsonwebtoken")
-
+var listToken = require("../list_token.json")
 function validateUser(req, res, next) {
     try {
-        const token = req.headers?.authorization ?? ''
-        const decode = jwt.verify(token.replace("Bearer ", ''), process.env.SECRET_TOKEN)
+        const token = req.headers?.authorization.replace("Bearer ", '') ?? ''
+        const tokenExpired = listToken.find((token) => token.token)
+        const decode = jwt.verify(token, process.env.SECRET_TOKEN)
         req.user = decode
         next()
     } catch (error) {
@@ -16,8 +17,8 @@ function validateUser(req, res, next) {
 
 function validateRefreshTokenUser(req, res, next) {
     try {
-        const token = req.headers?.authorization ?? ''
-        const decode = jwt.verify(token.replace("Bearer ", ''), process.env.SECRET_REFRESH_TOKEN)
+        const token = req.headers?.authorization.replace("Bearer ", '') ?? ''
+        const decode = jwt.verify(token, process.env.SECRET_REFRESH_TOKEN)
         req.user = decode
         next()
     } catch (error) {

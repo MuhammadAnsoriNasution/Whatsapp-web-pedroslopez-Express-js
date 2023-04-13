@@ -13,7 +13,7 @@ const io = new Server(server);
 const dotenv = require('dotenv');
 const multer = require('multer');
 const upload = multer();
-
+var listToken = require('./list_token.json');
 const { validateUser, validateRefreshTokenUser } = require("./middleware/authenticated")
 const port = process.env.PORT || 8000;
 
@@ -49,6 +49,18 @@ app.post("/api/v1/auth/login", upload.none(), function (req, res) {
   if (req.body.username === "wa_bot" && req.body.password === "Mesjid32@Secret") {
     var token = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
     var refreshtoken = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_REFRESH_TOKEN, { expiresIn: '1d' });
+
+    fs.writeFileSync('list_token.json',
+      JSON.stringify([...listToken,
+      {
+        "token": token,
+        "refreshtoken": refreshtoken,
+        "date": new Date(),
+        "isExpired": false
+      }
+      ]
+      )
+    );
     return res.status(200).json({ token: token, refreshtoken: refreshtoken, expiresIn: 60 })
   } else {
     return res.status(401).json({
@@ -65,11 +77,18 @@ app.post("/api/v1/auth/refresh-token", validateRefreshTokenUser, function (req, 
 })
 
 app.post("/api/v1/auth/logout", validateUser, function (req, res) {
+  var newListToken = listToken.map((token) => token.token === req.headers?.authorization.replace('Bearer ', '') ? ({ ...token, isExpired: true }) : token)
+  console.log(newListToken)
+  fs.writeFileSync('list_token.json',
+    JSON.stringify(newListToken)
+  )
+
   return res.status(200).json({
     status: true,
     user: req.user
   })
 })
+
 
 io.on("connection", function (socket) {
   console.log("connection")
@@ -134,15 +153,6 @@ app.post("/api/v1/initialize", validateUser, function (req, ress) {
   ress.json({ success: "client di hapus" });
 });
 
-app.post("/api/v1/logout", validateUser, async function (req, ress) {
-  try {
-    client.logout();
-    client.initialize();
-    ress.status(200).json({ success: "client berhasil di hapus" });
-  } catch (error) {
-    ress.status(200).json({ success: "client gagal di hapus" });
-  }
-});
 
 // Send message
 app.post(
