@@ -5,22 +5,20 @@ const fs = require("fs");
 const qrcode = require("qrcode");
 const http = require("http");
 const { phoneNumberFormatter } = require("./helpers/formatter");
-
+var jwt = require('jsonwebtoken');
 const app = express();
 const { Server } = require("socket.io");
 const server = http.createServer(app);
 const io = new Server(server);
-
+const dotenv = require('dotenv');
 const port = process.env.PORT || 8000;
+const { validateUser } = require("./middleware/authenticated")
+var bodyParser = require('body-parser');
 
+dotenv.config();
 app.use(express.json());
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
-
-
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, }));
 
 const client = new Client({
   restartOnAuthFail: true,
@@ -43,11 +41,29 @@ const client = new Client({
 client.initialize();
 
 app.get("/auth/qr", (req, res) => {
-  res.sendFile("index.html", {
-    root: __dirname,
-
-  });
+  res.sendFile("index.html", { root: __dirname, });
 });
+
+app.post("/api/v1/auth/sign", function (req, res) {
+  if (req.body.username === "wa_bot" && req.body.password === "Mesjid32@") {
+    var token = jwt.sign({ data: { username: 'ansori' } }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
+    var refreshtoken = jwt.sign({ data: { username: 'ansori' } }, process.env.SECRET_REFRESH_TOKEN, { expiresIn: '1d' });
+    return res.status(200).json({ token: token, refreshtoken: refreshtoken, expiresIn: 60 })
+  } else {
+    return res.status(401).json({
+      staus: false,
+      message: "Unauthorized"
+    })
+  }
+})
+
+app.post("/api/v1/auth/logout", validateUser, function (req, res) {
+  return res.status(200).json({
+    status: true,
+    user: req.user
+  })
+})
+
 io.on("connection", function (socket) {
   console.log("connection")
   socket.emit("message", "Connecting...");
@@ -101,7 +117,7 @@ const checkRegisteredNumber = async function (number) {
   return isRegistered;
 };
 
-app.post("/initialize", function (req, ress) {
+app.post("/api/v1/initialize", validateUser, function (req, ress) {
   try {
     client.destroy();
     client.initialize();
@@ -111,7 +127,7 @@ app.post("/initialize", function (req, ress) {
   ress.json({ success: "client di hapus" });
 });
 
-app.post("/logout", async function (req, ress) {
+app.post("api/v1/logout", validateUser, async function (req, ress) {
   try {
     client.logout();
     client.initialize();
@@ -123,7 +139,8 @@ app.post("/logout", async function (req, ress) {
 
 // Send message
 app.post(
-  "/send-message",
+  "api/v1/send-message",
+  validateUser,
   [body("number").notEmpty(), body("message").notEmpty()],
   async (req, res) => {
     if (client.info === undefined) {
@@ -191,7 +208,8 @@ const findGroupByName = async function (name) {
 // Send message to group
 // You can use chatID or group name, yea!
 app.post(
-  "/send-group-message",
+  "/api/v1/send-group-message",
+  validateUser,
   [
     body("id").custom((value, { req }) => {
       if (!value && !req.body.name) {
