@@ -42,7 +42,7 @@ const client = new Client({
 
 client.initialize();
 
-app.get("/", (req, res) => {
+app.get("/auth/qr", (req, res) => {
   res.sendFile("index.html", {
     root: __dirname,
 
@@ -101,7 +101,7 @@ const checkRegisteredNumber = async function (number) {
   return isRegistered;
 };
 
-app.get("/initialize", function (req, ress) {
+app.post("/initialize", function (req, ress) {
   try {
     client.destroy();
     client.initialize();
@@ -111,7 +111,7 @@ app.get("/initialize", function (req, ress) {
   ress.json({ success: "client di hapus" });
 });
 
-app.get("/logout", async function (req, ress) {
+app.post("/logout", async function (req, ress) {
   try {
     client.logout();
     client.initialize();
