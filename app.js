@@ -11,14 +11,15 @@ const { Server } = require("socket.io");
 const server = http.createServer(app);
 const io = new Server(server);
 const dotenv = require('dotenv');
+const multer = require('multer');
+const upload = multer();
+
+const { validateUser, validateRefreshTokenUser } = require("./middleware/authenticated")
 const port = process.env.PORT || 8000;
-const { validateUser } = require("./middleware/authenticated")
-var bodyParser = require('body-parser');
 
 dotenv.config();
+app.use(express.urlencoded());
 app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.urlencoded({ extended: true, }));
 
 const client = new Client({
   restartOnAuthFail: true,
@@ -44,7 +45,7 @@ app.get("/auth/qr", (req, res) => {
   res.sendFile("index.html", { root: __dirname, });
 });
 
-app.post("/api/v1/auth/sign", function (req, res) {
+app.post("/api/v1/auth/login", upload.none(), function (req, res) {
   if (req.body.username === "wa_bot" && req.body.password === "Mesjid32@Secret") {
     var token = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
     var refreshtoken = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_REFRESH_TOKEN, { expiresIn: '1d' });
@@ -55,6 +56,12 @@ app.post("/api/v1/auth/sign", function (req, res) {
       message: "Unauthorized"
     })
   }
+})
+
+app.post("/api/v1/auth/refresh-token", validateRefreshTokenUser, function (req, res) {
+  var token = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
+  var refreshtoken = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_REFRESH_TOKEN, { expiresIn: '1d' });
+  return res.status(200).json({ token: token, refreshtoken: refreshtoken, expiresin: 60 })
 })
 
 app.post("/api/v1/auth/logout", validateUser, function (req, res) {
@@ -127,7 +134,7 @@ app.post("/api/v1/initialize", validateUser, function (req, ress) {
   ress.json({ success: "client di hapus" });
 });
 
-app.post("api/v1/logout", validateUser, async function (req, ress) {
+app.post("/api/v1/logout", validateUser, async function (req, ress) {
   try {
     client.logout();
     client.initialize();
@@ -139,9 +146,10 @@ app.post("api/v1/logout", validateUser, async function (req, ress) {
 
 // Send message
 app.post(
-  "api/v1/send-message",
+  "/api/v1/send-message",
   validateUser,
   [body("number").notEmpty(), body("message").notEmpty()],
+  upload.none(),
   async (req, res) => {
     if (client.info === undefined) {
       return res.status(405).json({
@@ -265,3 +273,5 @@ app.post(
 server.listen(port, function () {
   console.log("App running on http://localhost:" + port);
 });
+
+// list api
