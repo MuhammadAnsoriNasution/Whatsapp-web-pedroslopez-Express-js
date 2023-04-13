@@ -45,9 +45,9 @@ app.get("/auth/qr", (req, res) => {
 });
 
 app.post("/api/v1/auth/sign", function (req, res) {
-  if (req.body.username === "wa_bot" && req.body.password === "Mesjid32@") {
-    var token = jwt.sign({ data: { username: 'ansori' } }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
-    var refreshtoken = jwt.sign({ data: { username: 'ansori' } }, process.env.SECRET_REFRESH_TOKEN, { expiresIn: '1d' });
+  if (req.body.username === "wa_bot" && req.body.password === "Mesjid32@Secret") {
+    var token = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
+    var refreshtoken = jwt.sign({ data: { username: 'wa_bot' } }, process.env.SECRET_REFRESH_TOKEN, { expiresIn: '1d' });
     return res.status(200).json({ token: token, refreshtoken: refreshtoken, expiresIn: 60 })
   } else {
     return res.status(401).json({
